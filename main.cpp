@@ -1,27 +1,41 @@
+#include <algorithm>
 #include <cstdlib>
 #include <raylib.h>
 #include <raymath.h>
 
-//------------ TETRIS -----------------//
+//--------------------- TETRIS -----------------------------//
 
 //--------- WINDOW
 #define WINDOW_TITLE "Easy Tetris"
-#define WINDOW_HEIGHT 640
-#define WINDOW_WIDTH 480
+#define WINDOW_HEIGHT 800
+#define WINDOW_WIDTH 400
 
 //--------- PERFORMANCE
 #define TARGET_FPS 30
 
 //--------- CELLS
-#define CELL_SIZE 20
-#define CELL_COUNT_VERTICAL WINDOW_HEIGHT / CELL_SIZE
-#define CELL_COUNT_HORIZONTAL WINDOW_WIDTH / CELL_SIZE
+#define CELL_COUNT_HORIZONTAL 10
+#define CELL_COUNT_VERTICAL 20
+#define CELL_SIZE WINDOW_WIDTH / CELL_COUNT_HORIZONTAL
+#define AUTO_WINDOW_HEIGHT CELL_SIZE *CELL_COUNT_VERTICAL
 
 #define CELL_COUNT 4
 
 using namespace std;
 
 namespace tetris {
+
+void draw_grid() {
+  // Horizontal
+  for (int i = 0; i < CELL_COUNT_VERTICAL; i++) {
+    DrawLine(0, i * CELL_SIZE, WINDOW_WIDTH, i * CELL_SIZE, WHITE);
+  }
+
+  // Vertical
+  for (int i = 0; i < CELL_COUNT_HORIZONTAL; i++) {
+    DrawLine(i * CELL_SIZE, 0, i * CELL_SIZE, AUTO_WINDOW_HEIGHT, WHITE);
+  }
+}
 
 Vector2 get_random_vec2();
 void draw_cell(int x, int y, Color color);
@@ -47,7 +61,7 @@ bool cell_exists(Block block, Vector2 pos) {
   return false;
 }
 
-Block create_block() {
+Block create_block(Vector2 initial_pos) {
   Block block;
 
   for (int i = 0; i < CELL_COUNT; i++) {
@@ -56,9 +70,7 @@ Block create_block() {
     block.body[i].y = -1;
   }
 
-  Vector2 first_cell = get_random_vec2();
-
-  block.body[0] = first_cell;
+  block.body[0] = initial_pos;
 
   for (int i = 1; i < CELL_COUNT; i++) {
 
@@ -112,8 +124,33 @@ void draw_block(Block block) {
   }
 }
 
+void fall(Block *block) {
+  for (int i = 0; i < CELL_COUNT; i++) {
+    block->body[i] = Vector2Add(block->body[i], {0, 1});
+  }
+}
+
+void move(Block *block, Vector2 vec2) {
+  for (int i = 0; i < CELL_COUNT; i++) {
+    block->body[i] = Vector2Add(block->body[i], vec2);
+  }
+}
+
+void handle_input(Block *block) {
+  int key = GetKeyPressed();
+
+  switch (key) {
+  case KEY_LEFT:
+    move(block, {-1, 0});
+    break;
+  case KEY_RIGHT:
+    move(block, {1, 0});
+    break;
+  }
+}
+
 void init() {
-  InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE);
+  InitWindow(WINDOW_WIDTH, AUTO_WINDOW_HEIGHT, WINDOW_TITLE);
   SetTargetFPS(TARGET_FPS);
 }
 
@@ -133,23 +170,37 @@ void print_fps() { DrawFPS(10, 10); }
 void close() { CloseWindow(); }
 }; // namespace tetris
 
+double last_updatetime = 0;
+
+bool event_triggered(double interval) {
+  double current_time = GetTime();
+
+  if (current_time - last_updatetime >= interval) {
+    last_updatetime = current_time;
+    return true;
+  }
+
+  return false;
+}
+
 int main(int argc, char *argv[]) {
   tetris::init();
+  // Vector2 first_cell = get_random_vec2();
 
-  tetris::Block block1 = tetris::create_block();
-  tetris::Block block2 = tetris::create_block();
-  tetris::Block block3 = tetris::create_block();
-  tetris::Block block4 = tetris::create_block();
+  tetris::Block block1 = tetris::create_block({3, 3});
 
   // Game loop
   while (!WindowShouldClose()) {
     BeginDrawing();
     ClearBackground(BLACK);
+    tetris::draw_grid();
+    tetris::handle_input(&block1);
+
+    if (event_triggered(1)) {
+      tetris::fall(&block1);
+    }
 
     tetris::draw_block(block1);
-    tetris::draw_block(block2);
-    tetris::draw_block(block3);
-    tetris::draw_block(block4);
 
     EndDrawing();
   }
